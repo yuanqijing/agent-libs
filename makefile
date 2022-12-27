@@ -15,15 +15,15 @@ BUILD_IMAGE ?= kindlingproject/kernel-builder:latest
 # check if linux-headers are installed, if not exit download them from kernel.org
 .PHONY: deps
 deps: ## Install dependencies
-	@echo "Installing dependencies..." \
-    if [ -z "$(shell docker images -q $(BUILD_IMAGE))" ]; then \
+	@echo "Installing dependencies..."; \
+        if [ -z "$(shell docker images -q $(BUILD_IMAGE))" ]; then \
 		echo "Downloading build image..."; \
 		docker pull $(BUILD_IMAGE); \
 	else \
 		echo "Build image already exists"; \
 	fi
-	@echo "Checking for linux-headers..."
-	@if [ -z "$(shell dpkg -l | grep linux-headers-$(shell uname -r))" ]; then \
+	@echo "Checking for linux-headers...";
+	if [ -z "$(shell dpkg -l | grep linux-headers-$(shell uname -r))" ]; then \
 		echo "Downloading linux-headers..."; \
 		sudo apt-get install linux-headers-$(shell uname -r); \
 	else \
@@ -44,8 +44,8 @@ build: deps ## Build kernel
 	    -v /lib/modules:/host/lib/modules \
 		-v $(REPO_DIR):/source \
 		$(BUILD_IMAGE)
-	@echo "Packaging falcolib-probe..." \
-    @tar -cvzf falcolib-probe.tar.gz $(OUTPUT_DIR)
+	@echo "Packaging falcolib-probe..."; \
+        tar -cvzf falcolib-probe.tar.gz $(OUTPUT_DIR)
 
 
 .PHONY: clean
