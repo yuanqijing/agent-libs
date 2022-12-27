@@ -3898,6 +3898,13 @@ FILLER(sys_pagefault_e, false)
 	unsigned long error_code;
 	unsigned long address;
 	unsigned long ip;
+	struct task_struct *task;
+	unsigned long total_vm;
+	unsigned long maj_flt;
+	unsigned long min_flt;
+	struct mm_struct *mm;
+	long total_rss;
+	long swap;
 	u32 flags;
 	int res;
 
@@ -3914,16 +3921,59 @@ FILLER(sys_pagefault_e, false)
 	error_code = ctx->error_code;
 #endif
 
-	res = bpf_val_to_ring(data, address);
+	task = (struct task_struct *)bpf_get_current_task();
+
+
+	/*
+	 * pgft_maj
+	 */
+	maj_flt = _READ(task->maj_flt);
+	res = bpf_val_to_ring_type(data, maj_flt, PT_UINT64);
 	if (res != PPM_SUCCESS)
 		return res;
 
-	res = bpf_val_to_ring(data, ip);
+	/*
+	 * pgft_min
+	 */
+	min_flt = _READ(task->min_flt);
+	res = bpf_val_to_ring_type(data, min_flt, PT_UINT64);
 	if (res != PPM_SUCCESS)
 		return res;
 
-	flags = pf_flags_to_scap(error_code);
-	res = bpf_val_to_ring(data, flags);
+	total_vm = 0;
+	total_rss = 0;
+	swap = 0;
+
+	mm = _READ(task->mm);
+	if (mm) {
+		total_vm = _READ(mm->total_vm);
+		total_vm <<= (PAGE_SHIFT - 10);
+		total_rss = bpf_get_mm_rss(mm) << (PAGE_SHIFT - 10);
+		swap = bpf_get_mm_swap(mm) << (PAGE_SHIFT - 10);
+	}
+
+	/*
+	 * vm_size
+	 */
+	res = bpf_val_to_ring_type(data, total_vm, PT_UINT32);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * vm_rss
+	 */
+	res = bpf_val_to_ring_type(data, total_rss, PT_UINT32);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	/*
+	 * vm_swap
+	 */
+	res = bpf_val_to_ring_type(data, swap, PT_UINT32);
+
+	pid_t tid = _READ(task->pid);
+	int map_res = bpf_map_update_elem(&pgft_major_map, &tid, &maj_flt, BPF_ANY);
+	if(map_res != 0) return PPM_MAP_FAILURE;
 
 	return res;
 }

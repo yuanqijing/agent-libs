@@ -40,7 +40,10 @@ int32_t scap_bpf_set_fullcapture_port_range(scap_t* handle, uint16_t range_start
 int32_t scap_bpf_set_statsd_port(scap_t* handle, uint16_t port);
 int32_t scap_bpf_enable_dynamic_snaplen(scap_t* handle);
 int32_t scap_bpf_disable_dynamic_snaplen(scap_t* handle);
+int32_t scap_bpf_clear_pagefault_map(scap_t* handle);
 int32_t scap_bpf_enable_page_faults(scap_t* handle);
+int scap_bpf_get_pagefault_threads_number(scap_t* handle);
+int32_t scap_bpf_update_pagefaults_threads_number(scap_t* handle, int tid, unsigned long val);
 int32_t scap_bpf_start_dropping_mode(scap_t* handle, uint32_t sampling_ratio);
 int32_t scap_bpf_stop_dropping_mode(scap_t* handle);
 int32_t scap_bpf_enable_tracers_capture(scap_t* handle);

@@ -116,6 +116,30 @@ static int bpf_map_update_elem(int fd, const void *key, const void *value, uint6
 	return sys_bpf(BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
 }
 
+static int bpf_map_get_next_key(int fd, void *key, void *next_key){
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+
+	attr.map_fd = fd;
+	attr.key = (unsigned long) key;
+	attr.next_key = (unsigned long) next_key;
+
+	return sys_bpf(BPF_MAP_GET_NEXT_KEY, &attr, sizeof(attr));
+}
+
+static int bpf_map_delete_elem(int fd, const void *key)
+{
+	union bpf_attr attr;
+
+	bzero(&attr, sizeof(attr));
+
+	attr.map_fd = fd;
+	attr.key = (unsigned long) key;
+
+	return sys_bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
+}
+
 static int bpf_map_lookup_elem(int fd, const void *key, void *value)
 {
 	union bpf_attr attr;
@@ -1221,6 +1245,72 @@ int32_t scap_bpf_enable_dynamic_snaplen(scap_t* handle)
 	return SCAP_SUCCESS;
 }
 
+int32_t scap_bpf_clear_pagefault_map(scap_t* handle){
+	struct sysdig_bpf_settings settings;
+	int k = 0;
+
+	if(bpf_map_lookup_elem(handle->m_bpf_map_fds[SYSDIG_SETTINGS_MAP], &k, &settings) != 0)
+	{
+		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "SYSDIG_SETTINGS_MAP bpf_map_lookup_elem < 0");
+		return SCAP_FAILURE;
+	}
+
+	// start to clear map & set the mutex 
+	settings.pgft_map_clear = true;
+	if(bpf_map_update_elem(handle->m_bpf_map_fds[SYSDIG_SETTINGS_MAP], &k, &settings, BPF_ANY) != 0)
+	{
+		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "SYSDIG_SETTINGS_MAP bpf_map_update_elem < 0");
+		return SCAP_FAILURE;
+	}
+
+
+	int next_key, lookup_key;
+	lookup_key = -1;
+	while(bpf_map_get_next_key(handle->m_bpf_map_fds[SYSDIG_PAGEFAULT_MAJOR_MAP], &lookup_key, &next_key) == 0){
+		bpf_map_delete_elem(handle->m_bpf_map_fds[SYSDIG_PAGEFAULT_MAJOR_MAP], &next_key);
+		lookup_key = next_key;
+	}
+
+	// end up to clear map & clear the mutex
+	settings.pgft_map_clear = false;
+	if(bpf_map_update_elem(handle->m_bpf_map_fds[SYSDIG_SETTINGS_MAP], &k, &settings, BPF_ANY) != 0)
+	{
+		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "SYSDIG_SETTINGS_MAP bpf_map_update_elem < 0");
+		return SCAP_FAILURE;
+	}
+
+
+	k = -1;
+	unsigned long val = 0;
+
+	if(bpf_map_update_elem(handle->m_bpf_map_fds[SYSDIG_PAGEFAULT_MAJOR_MAP], &k, &val, BPF_ANY) != 0)
+	{
+		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "SYSDIG_PAGEFAULT_MAJOR_MAP bpf_map_update_elem < 0");
+		return SCAP_FAILURE;
+	}
+
+	return SCAP_SUCCESS;
+}
+int scap_bpf_get_pagefault_threads_number(scap_t* handle){
+	int k = -1;
+	unsigned long val = 0;
+
+	if(bpf_map_lookup_elem(handle->m_bpf_map_fds[SYSDIG_PAGEFAULT_MAJOR_MAP], &k, &val) != 0)
+	{
+		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "SYSDIG_PAGEFAULT_MAJOR_MAP bpf_map_lookup_elem < 0");
+		return -1;
+	}
+	return val;
+}
+int32_t scap_bpf_update_pagefaults_threads_number(scap_t* handle, int tid, unsigned long val){
+	if(bpf_map_update_elem(handle->m_bpf_map_fds[SYSDIG_PAGEFAULT_MAJOR_MAP], &tid, &val, BPF_ANY) != 0)
+	{
+		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "SYSDIG_PAGEFAULT_MAJOR_MAP bpf_map_update_elem < 0");
+		return SCAP_FAILURE;
+	}
+	return SCAP_SUCCESS;
+}
+
 int32_t scap_bpf_enable_page_faults(scap_t* handle)
 {
 	struct sysdig_bpf_settings settings;
@@ -1443,6 +1533,7 @@ static int32_t set_default_settings(scap_t *handle)
 	settings.is_dropping = false;
 	settings.tracers_enabled = false;
 	settings.skb_capture = false;
+	settings.pgft_map_clear = false;
 	settings.fullcapture_port_range_start = 0;
 	settings.fullcapture_port_range_end = 0;
 	settings.statsd_port = 8125;

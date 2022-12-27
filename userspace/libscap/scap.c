@@ -35,6 +35,7 @@ limitations under the License.
 #endif // _WIN32
 
 #include "scap.h"
+#include "../../driver/bpf/types.h"
 #ifdef HAS_CAPTURE
 #if !defined(_WIN32) && !defined(CYGWING_AGENT)
 #include "driver_config.h"
@@ -1915,6 +1916,32 @@ int32_t scap_enable_tracers_capture(scap_t* handle)
 	}
 
 	return SCAP_SUCCESS;
+}
+#endif
+
+int scap_get_pagefaults_threads_number(scap_t *handle){
+	return scap_bpf_get_pagefault_threads_number(handle);
+}
+
+int32_t scap_update_pagefaults_thread_number(scap_t *handle, int tid, unsigned long val){
+	return scap_bpf_update_pagefaults_threads_number(handle, tid, val);
+}
+
+#if defined(HAS_CAPTURE) && ! defined(CYGWING_AGENT) && ! defined(_WIN32)
+int32_t scap_pagefaults_map_clear(scap_t *handle){
+	if(handle->m_mode != SCAP_MODE_LIVE)
+	{
+		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "scap_pagefaults_map_clear not supported on this scap mode");
+		ASSERT(false);
+		return SCAP_FAILURE;
+	}
+	if(handle->m_ndevs)
+	{
+		if(handle->m_bpf)
+		{
+			return scap_bpf_clear_pagefault_map(handle);
+		}
+	}
 }
 #endif
 

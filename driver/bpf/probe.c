@@ -410,6 +410,29 @@ static __always_inline int bpf_page_fault(struct page_fault_args *ctx)
 	if (!settings->capture_enabled)
 		return 0;
 
+	if(settings->pgft_map_clear)
+		return 0;
+
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+	unsigned long maj_flt = _READ(task->maj_flt);
+	if(maj_flt == 0){
+		return 0;
+	}
+	pid_t tid = _READ(task->pid);
+	unsigned long *last_maj = bpf_map_lookup_elem(&pgft_major_map, &tid);
+	if(last_maj && *last_maj == maj_flt){
+		return 0;
+	}
+
+	if(!last_maj){
+		int key = -1;
+		unsigned long *page_faults_threads_number = bpf_map_lookup_elem(&pgft_major_map, &key);
+		if(page_faults_threads_number){
+			(*page_faults_threads_number)++;
+			bpf_map_update_elem(&pgft_major_map, &key, page_faults_threads_number, BPF_ANY);
+		}
+	}
+
 	evt_type = PPME_PAGE_FAULT_E;
 
 	call_filler(ctx, ctx, evt_type, settings, UF_ALWAYS_DROP);
