@@ -45,7 +45,7 @@ build: deps ## Build kernel
 		-v $(REPO_DIR):/source \
 		$(BUILD_IMAGE)
 	@echo "Packaging falcolib-probe..."; \
-        tar -cvzf kindling-falcolib-probe.tar.gz $(OUTPUT_DIR)
+        tar -cvzf kindling-falcolib-probe.tar.gz kindling-falcolib-probe/
 
 
 .PHONY: clean
