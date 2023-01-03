@@ -4836,6 +4836,43 @@ KP_FILLER(tcp_set_state_kprobe_e)
 	return 0;
 }
 
+KP_FILLER(tcp_v4_syn_recv_sock_kprobe_e)
+{
+	struct pt_regs *args = (struct pt_regs*)data->ctx;
+	struct sock *sk = (struct sock *)_READ(args->di);
+	struct inet_connection_sock *csk = inet_csk(sk);
+
+	u32 max_backlog = 0;
+	bpf_probe_read(&max_backlog, sizeof(max_backlog), (void *)&sk->sk_max_ack_backlog);
+	u32 acc_queue_len = 0;
+	u32 syn_queue_len = 0;
+	bpf_probe_read(&acc_queue_len, sizeof(acc_queue_len), (void *)&sk->sk_ack_backlog);
+	atomic_t syn_queue_len_atomic;
+	bpf_probe_read(&syn_queue_len_atomic, sizeof(syn_queue_len_atomic), (void *)&csk->icsk_accept_queue.qlen);
+	syn_queue_len = atomic_read(&syn_queue_len_atomic);
+	
+	int res;
+	res = sock_to_ring(data, sk);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	res = bpf_val_to_ring(data, max_backlog);
+	if (res != PPM_SUCCESS)
+		return res;
+
+	res = bpf_val_to_ring(data, acc_queue_len);
+	if (res != PPM_SUCCESS)
+		return res;
+	
+	res = bpf_val_to_ring(data, syn_queue_len);
+	if (res != PPM_SUCCESS)
+		return res;
+	
+	bpf_printk("tcp_v4_syn_recv_sock_kprobe_e %d %d %d\n", max_backlog, acc_queue_len, syn_queue_len);
+	return 0;
+}
+
+
 FILLER(tcp_retransmit_skb_e, false)
 {
 	return 0;
@@ -4845,7 +4882,6 @@ FILLER(tcp_rcv_established_e, false)
 {
 	return 0;
 }
-
 
 FILLER(tcp_drop_e, false)
 {
@@ -4861,7 +4897,6 @@ FILLER(tcp_set_state_e, false)
 {
 	return 0;
 }
-
 
 FILLER(net_dev_start_xmit_e, false)
 {

@@ -316,6 +316,6 @@ const struct ppm_event_entry g_ppm_events[PPM_EVENT_MAX] = {
 	[PPME_TCP_SET_STATE_E] = {FILLER_REF(tcp_set_state_e)},
 	[PPME_TCP_SEND_RESET_E] = {FILLER_REF(tcp_send_reset_e)},
 	[PPME_TCP_RECEIVE_RESET_E] = {FILLER_REF(tcp_receive_reset_e)},
-	[PPME_CPU_ANALYSIS_E] = {FILLER_REF(cpu_analysis_e)}
+	[PPME_CPU_ANALYSIS_E] = {FILLER_REF(cpu_analysis_e)},
 #endif /* WDIG */
 };
