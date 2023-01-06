@@ -35,6 +35,7 @@ limitations under the License.
 #endif // _WIN32
 
 #include "scap.h"
+#include "../../driver/bpf/types.h"
 #ifdef HAS_CAPTURE
 #if !defined(_WIN32) && !defined(CYGWING_AGENT)
 #include "driver_config.h"
@@ -368,7 +369,7 @@ scap_t* scap_open_live_int(char *error, int32_t *rc,
 				}
 				else
 				{
-					snprintf(error, SCAP_LASTERR_SIZE, "error opening device %s. Make sure you have root credentials and that the " PROBE_NAME " module is loaded.", filename);
+					snprintf(error, SCAP_LASTERR_SIZE, "error opening device %s. Make sure you have root credentials and that the " PROBE_NAME " module is loaded.Please read faq http://kindling.harmonycloud.cn/docs/installation/faq/#error-precompiled-module-at-optkindling-is-not-found", filename);
 				}
 
 				scap_close(handle);
@@ -727,6 +728,7 @@ scap_t* scap_open_offline_int(gzFile gzfile,
 	handle->m_udig = false;
 	handle->m_suppressed_comms = NULL;
 	handle->m_suppressed_tids = NULL;
+	handle->m_pid_vtid_info = NULL;
 
 	handle->m_file_evt_buf = (char*)malloc(FILE_READ_BUF_SIZE);
 	if(!handle->m_file_evt_buf)
@@ -1917,6 +1919,32 @@ int32_t scap_enable_tracers_capture(scap_t* handle)
 }
 #endif
 
+int scap_get_pagefaults_threads_number(scap_t *handle){
+	return scap_bpf_get_pagefault_threads_number(handle);
+}
+
+int32_t scap_update_pagefaults_thread_number(scap_t *handle, int tid, unsigned long val){
+	return scap_bpf_update_pagefaults_threads_number(handle, tid, val);
+}
+
+#if defined(HAS_CAPTURE) && ! defined(CYGWING_AGENT) && ! defined(_WIN32)
+int32_t scap_pagefaults_map_clear(scap_t *handle){
+	if(handle->m_mode != SCAP_MODE_LIVE)
+	{
+		snprintf(handle->m_lasterr, SCAP_LASTERR_SIZE, "scap_pagefaults_map_clear not supported on this scap mode");
+		ASSERT(false);
+		return SCAP_FAILURE;
+	}
+	if(handle->m_ndevs)
+	{
+		if(handle->m_bpf)
+		{
+			return scap_bpf_clear_pagefault_map(handle);
+		}
+	}
+}
+#endif
+
 #if defined(HAS_CAPTURE) && ! defined(CYGWING_AGENT) && ! defined(_WIN32)
 int32_t scap_enable_page_faults(scap_t *handle)
 {
@@ -2714,4 +2742,32 @@ int32_t scap_disable_skb_capture(scap_t *handle)
 		return SCAP_FAILURE;
 	}
 #endif
+}
+
+bool put_pid_vtid_map(scap_t *handle, uint64_t pid, uint64_t tid, uint64_t vtid){
+	int32_t uth_status = SCAP_SUCCESS;
+	pid_vtid_info *pvi;
+	HASH_FIND_INT64(handle->m_pid_vtid_info, &pid, pvi);
+	if(pvi==NULL){
+		pvi = (struct pid_vtid_info*)malloc(sizeof(pid_vtid_info));
+		pvi->pid_vtid = pid<<32 | (vtid & 0xFFFFFFFF);
+		pvi->tid = tid;
+		uth_status = SCAP_SUCCESS;
+		HASH_ADD_INT64(handle->m_pid_vtid_info, pid_vtid, pvi);
+	}else {
+		pvi->tid = tid;
+	}
+	return true;
+}
+
+uint64_t get_pid_vtid_map(scap_t *handle, uint64_t pid, uint64_t vtid){
+	uint64_t pid_vtid = pid<<32 | (vtid & 0xFFFFFFFF);
+	int32_t uth_status = SCAP_SUCCESS;
+	pid_vtid_info *pvi;
+	HASH_FIND_INT64(handle->m_pid_vtid_info, &pid_vtid, pvi);
+	if(pvi!=NULL){
+		return pvi->tid;
+	}else{
+		return 0;
+	}
 }

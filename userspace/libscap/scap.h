@@ -224,6 +224,13 @@ typedef struct scap_fdinfo
 	UT_hash_handle hh; ///< makes this structure hashable
 }scap_fdinfo;
 
+typedef struct pid_vtid_info
+{
+	uint64_t pid_vtid; ///< The id of the process containing this thread. In single thread processes, this is equal to tid.
+	uint64_t tid;
+	UT_hash_handle hh; ///< makes this structure hashable
+}pid_vtid_info;
+
 /*!
   \brief Process information
 */
@@ -1061,6 +1068,9 @@ uint64_t scap_ftell(scap_t *handle);
 void scap_fseek(scap_t *handle, uint64_t off);
 int32_t scap_enable_tracers_capture(scap_t* handle);
 int32_t scap_enable_page_faults(scap_t *handle);
+int scap_get_pagefaults_threads_number(scap_t *handle);
+int32_t scap_update_pagefaults_thread_number(scap_t *handle, int tid, unsigned long val);
+int32_t scap_pagefaults_map_clear(scap_t *handle);
 int32_t scap_enable_skb_capture(scap_t *handle);
 int32_t scap_disable_skb_capture(scap_t *handle);
 uint64_t scap_get_unexpected_block_readsize(scap_t* handle);
@@ -1105,6 +1115,8 @@ int32_t scap_set_fullcapture_port_range(scap_t* handle, uint16_t range_start, ui
  */
 int32_t scap_set_statsd_port(scap_t* handle, uint16_t port);
 
+bool put_pid_vtid_map(scap_t *handle, uint64_t pid, uint64_t tid, uint64_t vtid);
+uint64_t get_pid_vtid_map(scap_t *handle, uint64_t pid, uint64_t vtid);
 #ifdef __cplusplus
 }
 #endif

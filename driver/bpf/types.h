@@ -261,9 +261,11 @@ enum sysdig_map_types {
 	SYSDIG_TMP_SCRATCH_MAP = 7,
 	SYSDIG_SETTINGS_MAP = 8,
 	SYSDIG_LOCAL_STATE_MAP = 9,
+	SYSDIG_RTT_STATISTICS = 10,
+	SYSDIG_STASH_TUPLE_MAP = 11,
+	SYSDIG_PAGEFAULT_MAJOR_MAP = 12, 
 #ifndef BPF_SUPPORTS_RAW_TRACEPOINTS
-	SYSDIG_STASH_MAP = 10,
-	SYSDIG_RTT_STATISTICS = 11,
+	SYSDIG_STASH_MAP = 13,
 #endif
 };
 
@@ -275,6 +277,7 @@ struct sysdig_bpf_settings {
 	bool capture_enabled;
 	bool do_dynamic_snaplen;
 	bool page_faults;
+	bool pgft_map_clear;
 	bool dropping_mode;
 	bool is_dropping;
 	bool tracers_enabled;
@@ -282,6 +285,7 @@ struct sysdig_bpf_settings {
 	uint16_t fullcapture_port_range_start;
 	uint16_t fullcapture_port_range_end;
 	uint16_t statsd_port;
+	uint16_t switch_agg_num;
 	char if_name[16];
 	bool events_mask[PPM_EVENT_MAX];
 } __attribute__((packed));
@@ -305,4 +309,24 @@ struct sysdig_bpf_per_cpu_state {
 	bool in_use;
 } __attribute__((packed));
 
+#endif
+
+#ifdef CONFIG_ARM64
+#define PT_REGS_PARAM1(x)	((x)->regs[0])
+#define PT_REGS_PARAM2(x)	((x)->regs[1])
+#define PT_REGS_PARAM3(x)	((x)->regs[2])
+#define PT_REGS_PARAM4(x)	((x)->regs[3])
+#define PT_REGS_PARAM5(x)	((x)->regs[4])
+#define PT_REGS_PARAM6(x)	((x)->regs[5])
+#define PT_REGS_IP(x)				((x)->pc)
+#define PT_REGS_CALLNO(x)	((x)->syscallno)
+#else
+#define PT_REGS_PARAM1(x)	((x)->di)
+#define PT_REGS_PARAM2(x)	((x)->si)
+#define PT_REGS_PARAM3(x)	((x)->dx)
+#define PT_REGS_PARAM4(x)	((x)->r10)
+#define PT_REGS_PARAM5(x)	((x)->r8)
+#define PT_REGS_PARAM6(x)	((x)->r9)
+#define PT_REGS_IP(x)				((x)->ip)
+#define PT_REGS_CALLNO(x)	((x)->orig_ax)
 #endif

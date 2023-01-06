@@ -230,6 +230,11 @@ public:
 	*/
 	void open(const std::string &filename);
 
+	bool add_pid_vtid_info(uint64_t pid, uint64_t tid, uint64_t vtid);
+
+	uint64_t get_pid_vtid_info(uint64_t pid, uint64_t vtid);
+
+
 	/*!
 	  \brief Start an event capture from a file descriptor.
 
@@ -888,7 +893,10 @@ public:
 	void remove_meta_event_callback();
 	void filter_proc_table_when_saving(bool filter);
 	void enable_tracers_capture();
+	void clear_page_faults_map();
 	void enable_page_faults();
+	int get_pagefault_threads_number();
+	void update_pagefaults_threads_number(int tid, unsigned long val);
 	uint64_t get_bytes_read()
 	{
 		return scap_ftell(m_h);
@@ -979,6 +987,8 @@ private:
 	void add_protodecoders();
 
 	void remove_thread(int64_t tid, bool force);
+
+
 
 	//
 	// Note: lookup_only should be used when the query for the thread is made
