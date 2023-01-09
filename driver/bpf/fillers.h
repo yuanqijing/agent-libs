@@ -4853,6 +4853,7 @@ KP_FILLER(tcp_v4_syn_recv_sock_kprobe_e)
 	struct pt_regs *args = (struct pt_regs*)data->ctx;
 	struct sock *sk = (struct sock *)_READ(args->di);
 	struct inet_connection_sock *csk = inet_csk(sk);
+	struct request_sock *rsk = (struct request_sock *)_READ(args->dx);
 
 	u32 max_backlog = 0;
 	bpf_probe_read(&max_backlog, sizeof(max_backlog), (void *)&sk->sk_max_ack_backlog);
@@ -4864,7 +4865,8 @@ KP_FILLER(tcp_v4_syn_recv_sock_kprobe_e)
 	syn_queue_len = atomic_read(&syn_queue_len_atomic);
 	
 	int res;
-	res = sock_to_ring(data, sk);
+	bpf_printk("tcp_v4_syn_recv_sock_kprobe_e enter");
+	res = request_sock_to_ring(data, rsk);
 	if (res != PPM_SUCCESS)
 		return res;
 
