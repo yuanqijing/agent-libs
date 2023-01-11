@@ -19,7 +19,7 @@ KERNELDIR ?= /lib/modules/$(shell uname -r)/build
 # of clang (7) that we use in the agent image.
 FILTERED_KBUILD_CPPFLAGS=$(shell echo " ${KBUILD_CPPFLAGS} " | sed 's/ -fmacro-prefix-map[^ ]* / /')
 
-# DEBUG = -DBPF_DEBUG
+DEBUG = -DBPF_DEBUG
 CPU = -DCPU_ANALYSIS
 all:
 	$(MAKE) -C $(KERNELDIR) M=$$PWD
