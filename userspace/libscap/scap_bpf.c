@@ -48,6 +48,8 @@ limitations under the License.
 #ifdef MINIMAL_BUILD
 #undef MINIMAL_BUILD
 #endif
+#define UINT32_MAX (4294967295U)
+
 //
 // Some of this code is taken from the kernel samples under samples/bpf,
 // namely the parsing of the ELF objects, which is very tedious and not
@@ -65,7 +67,10 @@ struct bpf_map_data {
 
 static const int BUF_SIZE_PAGES = 2048;
 
-static const int BPF_LOG_SIZE = 1 << 18;
+/* Recommended log buffer size. 
+ * Taken from libbpf source code: https://github.com/libbpf/libbpf/blob/67a4b1464349345e483df26ed93f8d388a60cee1/src/bpf.h#L201
+ */
+static const int BPF_LOG_SIZE = UINT32_MAX >> 8;
 
 static char* license;
 
@@ -288,12 +293,21 @@ static uint32_t bpf_load_program(const struct bpf_insn *insns,
 		attr.kern_version = get_kernel_version();
 	}
 
+	/* Try a first time without catching verifier logs.
+	 * If `log_buf` paramater is NULL it means that we have no intention
+	 * to collect verifier logs in any case, so only 1 attempt is enough,
+	 * the second one would be useless without catching logs.
+	 */
 	fd = sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 	if(fd >= 0 || !log_buf || !log_buf_sz)
 	{
 		return fd;
 	}
 
+	/* Try a second time catching verifier logs. This step is performed 
+	 * only if we have a buffer for collecting them (so only if we
+	 * pass to `bpf_load_program()` function a `log_buf`!= NULL).
+	 */
 	attr.log_buf = (unsigned long) log_buf;
 	attr.log_size = log_buf_sz;
 	attr.log_level = 1;
